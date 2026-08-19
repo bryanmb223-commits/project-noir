@@ -1,5 +1,6 @@
 import NoirCharacter from "./NoirCharacter";
 import { useCharacter } from "../systems/character/CharacterContext";
+import { useSettings } from "../systems/settings/SettingsContext";
 
 interface RightPanelProps {
   onClose: () => void;
@@ -27,10 +28,11 @@ const projects = [
 
 export default function RightPanel({ onClose }: RightPanelProps) {
   const { characterState } = useCharacter();
+  const { settings } = useSettings();
 
   return (
     <aside
-      className="flex flex-col h-full overflow-y-auto flex-shrink-0"
+      className="noir-right-panel flex flex-col h-full overflow-y-auto flex-shrink-0"
       style={{ width: 268, minWidth: 268, background: "#171923", borderLeft: "1px solid #252840" }}
     >
       {/* Header */}
@@ -55,9 +57,9 @@ export default function RightPanel({ onClose }: RightPanelProps) {
       </div>
 
       <div className="flex flex-col gap-3 p-3">
-        <section className="noir-stage" aria-label="Estado visual da Noir">
-          <NoirCharacter state={characterState} />
-        </section>
+        {settings?.showCharacter !== false && <section className="noir-stage" aria-label="Estado visual da Noir">
+          <NoirCharacter state={characterState} animations={settings?.characterAnimations !== false} />
+        </section>}
 
         {/* Memories card */}
         <div className="rounded-xl p-3" style={{ background: "#202331", border: "1px solid #252840" }}>

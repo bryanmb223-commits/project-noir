@@ -1,12 +1,8 @@
 import React, { useState, useRef, useEffect } from "react";
 import ToshiAvatar from "./ToshiAvatar";
 import { useCharacter } from "../systems/character/CharacterContext";
-import { isCharacterState, type CharacterState } from "../systems/character/noirSprites";
-
-interface AssistantResponse {
-  message: string;
-  emotion?: CharacterState;
-}
+import { AIService } from "../systems/ai/AIService";
+import { useSettings } from "../systems/settings/SettingsContext";
 
 interface Message {
   id: number;
@@ -144,12 +140,13 @@ export default function ChatScreen() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const { setCharacterState } = useCharacter();
+  const { settings } = useSettings();
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isTyping]);
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!input.trim()) return;
     const userMsg: Message = {
       id: Date.now(),
@@ -160,37 +157,27 @@ export default function ChatScreen() {
     setMessages(prev => [...prev, userMsg]);
     setInput("");
     setIsTyping(true);
-    setCharacterState("thinking");
+    if (settings?.automaticExpressions !== false) setCharacterState("thinking");
 
-    setTimeout(() => {
-      const shouldSimulateError = userMsg.content.trim().toLowerCase() === "/error";
-      if (shouldSimulateError) {
-        setIsTyping(false);
-        setCharacterState("irritated");
-        setMessages(prev => [...prev, {
-          id: Date.now() + 1,
-          role: "ai",
-          content: "Não consegui concluir essa solicitação. Tente novamente em instantes.",
-          time: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
-        }]);
-        return;
-      }
-
-      // A integração real poderá retornar { message, emotion } neste formato.
-      const response: AssistantResponse = {
-        message: "Entendido! Estou processando sua solicitação e buscando informações relevantes nas memórias e projetos.",
-        emotion: "happy",
-      };
-      const aiMsg: Message = {
-        id: Date.now() + 1,
-        role: "ai",
-        content: response.message,
-        time: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
-      };
+    const responseId = Date.now() + 1;
+    try {
+      const history = [...messages, userMsg].map(({ role, content }) => ({ role, content }));
+      let streamedContent = "";
       setIsTyping(false);
-      setMessages(prev => [...prev, aiMsg]);
-      setCharacterState(isCharacterState(response.emotion) ? response.emotion : "happy");
-    }, 1800);
+      setMessages(prev => [...prev, { id: responseId, role: "ai", content: "", time: "agora" }]);
+      const response = await AIService.generate(history, delta => {
+        streamedContent += delta;
+        setMessages(prev => prev.map(message => message.id === responseId ? { ...message, content: streamedContent } : message));
+      });
+      if (settings?.automaticExpressions !== false) setCharacterState(response.emotion);
+    } catch (error) {
+      setIsTyping(false);
+      if (settings?.automaticExpressions !== false) setCharacterState("irritated");
+      setMessages(prev => prev.map(message => message.id === responseId ? {
+        ...message,
+        content: error instanceof Error ? error.message : "Não consegui concluir essa solicitação.",
+      } : message));
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {

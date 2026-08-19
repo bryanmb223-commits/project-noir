@@ -1,8 +1,4 @@
-import neutral from "../../assets/noir/neutral.png";
-import happy from "../../assets/noir/happy.png";
-import confident from "../../assets/noir/confident.png";
-import thinking from "../../assets/noir/thinking.png";
-import irritated from "../../assets/noir/irritated.png";
+import spriteSheet from "../../assets/noir/noir-sprite-sheet.png";
 
 export const CHARACTER_STATES = [
   "neutral",
@@ -14,12 +10,20 @@ export const CHARACTER_STATES = [
 
 export type CharacterState = (typeof CHARACTER_STATES)[number];
 
-export const noirSprites: Record<CharacterState, string> = {
-  neutral,
-  happy,
-  confident,
-  thinking,
-  irritated,
+interface SpriteFrame {
+  sheet: string;
+  column: 0 | 2 | 3;
+  row: 0 | 1;
+  scale: 2 | 4;
+}
+
+// A folha tem um quadro grande à esquerda e quatro quadrantes à direita.
+export const noirSprites: Record<CharacterState, SpriteFrame> = {
+  neutral: { sheet: spriteSheet, column: 0, row: 0, scale: 2 },
+  thinking: { sheet: spriteSheet, column: 2, row: 0, scale: 4 },
+  happy: { sheet: spriteSheet, column: 3, row: 0, scale: 4 },
+  confident: { sheet: spriteSheet, column: 2, row: 1, scale: 4 },
+  irritated: { sheet: spriteSheet, column: 3, row: 1, scale: 4 },
 };
 
 export function isCharacterState(value: unknown): value is CharacterState {

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Sidebar from "./components/Sidebar";
 import ChatScreen from "./components/ChatScreen";
 import RightPanel from "./components/RightPanel";
@@ -11,6 +11,7 @@ import MiniMode from "./components/MiniMode";
 import Notification from "./components/Notification";
 import PermissionDialog from "./components/PermissionDialog";
 import { CharacterProvider } from "./systems/character/CharacterContext";
+import { SettingsProvider } from "./systems/settings/SettingsContext";
 
 type Screen = "chat" | "memories" | "projects" | "notes" | "tools" | "settings";
 
@@ -21,13 +22,8 @@ export default function App() {
   const [showNotif, setShowNotif] = useState(false);
   const [showPerm, setShowPerm] = useState(false);
 
-  // Show notification after 3s for demo
-  useEffect(() => {
-    const t = setTimeout(() => setShowNotif(true), 3000);
-    return () => clearTimeout(t);
-  }, []);
-
   return (
+    <SettingsProvider>
     <CharacterProvider>
     <div
       className="flex h-full w-full overflow-hidden select-none"
@@ -41,7 +37,7 @@ export default function App() {
       />
 
       {/* Main content */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 min-w-0 overflow-hidden">
         {screen === "chat" && (
           <>
             <ChatScreen />
@@ -104,5 +100,6 @@ export default function App() {
       {showPerm && <PermissionDialog onClose={() => setShowPerm(false)} />}
     </div>
     </CharacterProvider>
+    </SettingsProvider>
   );
 }

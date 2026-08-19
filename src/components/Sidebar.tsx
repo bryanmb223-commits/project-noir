@@ -129,7 +129,7 @@ export default function Sidebar({ activeScreen, onNavigate, onMiniMode }: Sideba
 
   return (
     <aside
-      className="flex flex-col h-full border-r"
+      className="noir-main-sidebar flex flex-col h-full border-r"
       style={{
         width: 220,
         minWidth: 220,

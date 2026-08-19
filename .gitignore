@@ -6,5 +6,8 @@ dist-electron/
 *.log
 .env
 .env.*
+!.env.example
+.env
+.env.*
 .DS_Store
 Thumbs.db
