@@ -1,6 +1,10 @@
 node_modules/
 dist/
 release/
+out/
+dist-electron/
 *.log
+.env
+.env.*
 .DS_Store
 Thumbs.db
