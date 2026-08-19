@@ -1,0 +1,11 @@
+{
+  "title": "Project Noir",
+  "description": "Assistente pessoal desktop Project Noir.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}

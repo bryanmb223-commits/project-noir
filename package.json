@@ -1,0 +1,60 @@
+{
+  "name": "project-noir",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Assistente pessoal desktop Project Noir.",
+  "author": "Project Noir",
+  "type": "module",
+  "main": "electron/main/index.js",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "desktop:dev": "concurrently -k \"vite --host 127.0.0.1 --port 5173\" \"wait-on http://127.0.0.1:5173 && electron .\"",
+    "build": "vite build",
+    "desktop:build": "npm run build && electron-builder",
+    "preview": "vite preview",
+    "format": "oxfmt"
+  },
+  "dependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@rolldown/binding-win32-x64-msvc": "^1.2.4",
+    "@tailwindcss/vite": "^4.0.0",
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^6.0.0",
+    "concurrently": "^9.2.1",
+    "electron": "^43.4.0",
+    "electron-builder": "^26.0.12",
+    "oxfmt": "^0.2.0",
+    "tailwindcss": "^4.0.0",
+    "typescript": "^5.7.0",
+    "vite": "^8.0.0",
+    "wait-on": "^8.0.4"
+  },
+  "build": {
+    "appId": "com.projectnoir.desktop",
+    "productName": "Project Noir",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  },
+  "allowScripts": {
+    "electron-winstaller@5.4.0": true,
+    "electron@43.4.0": true
+  }
+}
