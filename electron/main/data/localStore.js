@@ -12,7 +12,16 @@ const DEFAULT_SETTINGS = {
   launchAtLogin: false,
   notifications: true,
   globalShortcut: GLOBAL_SHORTCUT,
-  aiProvider: "mock",
+  aiProvider: "local",
+  openAIModel: "gpt-5.2",
+  ollamaModel: "",
+  groqModel: "",
+  openRouterModel: "",
+  automaticFallback: false,
+  webSearchEnabled: true,
+  automaticWebSearch: true,
+  webSearchProvider: "tavily",
+  webSearchFallback: true,
 };
 
 export class LocalStore {

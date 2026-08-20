@@ -1,13 +1,10 @@
 export class MockProvider {
   name = "mock";
-
-  async generate({ messages }) {
-    const lastMessage = messages.at(-1)?.content?.trim() || "sua solicitação";
-    if (lastMessage.toLowerCase() === "/error") throw new Error("Erro simulado pelo MockProvider.");
-    return {
-      message: `Entendido. Recebi: “${lastMessage}”. O MockProvider está ativo enquanto nenhum provider real estiver configurado.`,
-      emotion: "happy",
-      provider: this.name,
-    };
+  async stream({ messages }, { signal, onDelta }) {
+    const last = messages.at(-1)?.content?.trim() || "sua solicitação";
+    if (last.toLowerCase() === "/error") throw new Error("Erro simulado pelo MockProvider.");
+    const message = `Entendido. Recebi: “${last}”. Esta é uma resposta local do MockProvider.`;
+    for (const chunk of message.match(/.{1,18}/g) ?? []) { if (signal?.aborted) throw new DOMException("Geração interrompida.", "AbortError"); onDelta(chunk); await new Promise(resolve => setTimeout(resolve, 20)); }
+    return { message, emotion: "happy", provider: this.name, model: "local-mock" };
   }
 }

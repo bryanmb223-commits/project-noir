@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import type { CharacterState } from "./noirSprites";
+import { TEMPORARY_CHARACTER_STATES, type CharacterState } from "./noirSprites";
 
 interface CharacterContextValue {
   characterState: CharacterState;
@@ -16,7 +16,7 @@ export function CharacterProvider({ children }: { children: ReactNode }) {
   const setCharacterState = useCallback((state: CharacterState) => {
     setState(state);
     if (idleTimer.current) clearTimeout(idleTimer.current);
-    if (state !== "neutral" && state !== "thinking") {
+    if (TEMPORARY_CHARACTER_STATES.has(state)) {
       idleTimer.current = setTimeout(() => setState("neutral"), 4500);
     }
   }, []);

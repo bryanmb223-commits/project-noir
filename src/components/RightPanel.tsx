@@ -1,34 +1,26 @@
+import { useEffect, useState } from "react";
 import NoirCharacter from "./NoirCharacter";
 import { useCharacter } from "../systems/character/CharacterContext";
 import { useSettings } from "../systems/settings/SettingsContext";
+import { dataService, type Memory, type Project, type Task } from "../services/dataService";
 
 interface RightPanelProps {
   onClose: () => void;
 }
 
-const memories = [
-  { icon: "🧠", title: "Poderes do Solis", date: "Hoje" },
-  { icon: "📖", title: "Capítulo 3 — estrutura", date: "Ontem" },
-  { icon: "🎵", title: "Trilha musical Flow", date: "3 dias atrás" },
-  { icon: "🧛", title: "Regras vampíricas", date: "5 dias atrás" },
-];
-
-const tasks = [
-  { done: false, label: "Revisar capítulo de Viridion", time: "14:00" },
-  { done: false, label: "Desenvolver nova habilidade", time: "16:00" },
-  { done: true, label: "Gravar música", time: "Concluído" },
-  { done: false, label: "Atualizar Vampire Codex", time: "Amanhã" },
-];
-
-const projects = [
-  { emoji: "📚", name: "Viridion", subtitle: "Universo Literário", color: "#7B61FF" },
-  { emoji: "⚔️", name: "Flow System", subtitle: "RPG", color: "#00CFFF" },
-  { emoji: "🧛", name: "Vampire Codex", subtitle: "Enciclopédia Vampírica", color: "#f472b6" },
-];
-
 export default function RightPanel({ onClose }: RightPanelProps) {
   const { characterState } = useCharacter();
   const { settings } = useSettings();
+  const [memories, setMemories] = useState<Array<{ icon: string; title: string; date: string }>>([]);
+  const [tasks, setTasks] = useState<Array<{ done: boolean; label: string; time: string }>>([]);
+  const [projects, setProjects] = useState<Array<{ emoji: string; name: string; subtitle: string; color: string }>>([]);
+  useEffect(() => {
+    void Promise.all([dataService.list<Memory>("memories"), dataService.list<Task>("tasks"), dataService.list<Project>("projects")]).then(([memoryItems, taskItems, projectItems]) => {
+      setMemories(memoryItems.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, 4).map(item => ({ icon: "🧠", title: item.content, date: item.category })));
+      setTasks(taskItems.sort((a, b) => Number(a.completed) - Number(b.completed) || b.updatedAt.localeCompare(a.updatedAt)).slice(0, 4).map(item => ({ done: item.completed, label: item.title, time: item.dueDate ? new Date(item.dueDate).toLocaleDateString("pt-BR") : item.completed ? "Concluído" : "Sem prazo" })));
+      setProjects(projectItems.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, 4).map(item => ({ emoji: "✦", name: item.name, subtitle: item.description || "Sem descrição", color: "#7B61FF" })));
+    });
+  }, []);
 
   return (
     <aside
@@ -57,7 +49,7 @@ export default function RightPanel({ onClose }: RightPanelProps) {
       </div>
 
       <div className="flex flex-col gap-3 p-3">
-        {settings?.showCharacter !== false && <section className="noir-stage" aria-label="Estado visual da Noir">
+        {settings?.showCharacter !== false && <section className="noir-stage" aria-label="Estado visual da Nyra">
           <NoirCharacter state={characterState} animations={settings?.characterAnimations !== false} />
         </section>}
 
@@ -75,6 +67,7 @@ export default function RightPanel({ onClose }: RightPanelProps) {
           </div>
 
           <div className="flex flex-col gap-1.5">
+            {!memories.length && <p className="text-xs py-2" style={{ color: "#9296A8" }}>Nenhuma memória salva.</p>}
             {memories.map(m => (
               <div
                 key={m.title}
@@ -127,6 +120,7 @@ export default function RightPanel({ onClose }: RightPanelProps) {
           </div>
 
           <div className="flex flex-col gap-1.5">
+            {!tasks.length && <p className="text-xs py-2" style={{ color: "#9296A8" }}>Nenhuma tarefa cadastrada.</p>}
             {tasks.map((t, i) => (
               <div key={i} className="flex items-start gap-2.5 py-1.5">
                 <div
@@ -179,6 +173,7 @@ export default function RightPanel({ onClose }: RightPanelProps) {
           </div>
 
           <div className="flex flex-col gap-1.5">
+            {!projects.length && <p className="text-xs py-2" style={{ color: "#9296A8" }}>Nenhum projeto ativo.</p>}
             {projects.map(p => (
               <div
                 key={p.name}

@@ -1,40 +1,11 @@
 import { useEffect, useState } from "react";
-import { dataService, type Project } from "../services/dataService";
-
+import { dataService, type Memory, type Note, type Project, type Task } from "../services/dataService";
+import EntityModal from "./EntityModal";
 export default function ProjectsScreen() {
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [activeId, setActiveId] = useState<string | null>(null);
-  const active = projects.find(project => project.id === activeId) ?? projects[0];
-  const reload = () => dataService.list<Project>("projects").then(items => { setProjects(items); setActiveId(current => current ?? items[0]?.id ?? null); });
+  const [projects, setProjects] = useState<Project[]>([]); const [activeId, setActiveId] = useState<string | null>(null); const [editing, setEditing] = useState<Partial<Project> | null>(null); const [related, setRelated] = useState({ notes: [] as Note[], tasks: [] as Task[], memories: [] as Memory[] }); const active = projects.find(x => x.id === activeId) ?? projects[0];
+  const reload = async () => { const [p, notes, tasks, memories] = await Promise.all([dataService.list<Project>("projects"), dataService.list<Note>("notes"), dataService.list<Task>("tasks"), dataService.list<Memory>("memories")]); setProjects(p); setActiveId(current => current && p.some(x => x.id === current) ? current : p[0]?.id ?? null); setRelated({ notes, tasks, memories }); };
   useEffect(() => { void reload(); }, []);
-
-  const createProject = async () => {
-    const name = window.prompt("Nome do projeto:")?.trim();
-    if (!name) return;
-    const description = window.prompt("Descrição (opcional):")?.trim() || "";
-    const created = await dataService.create<Project>("projects", { name, description });
-    await reload(); setActiveId(created.id);
-  };
-  const editProject = async () => {
-    if (!active) return;
-    const name = window.prompt("Nome do projeto:", active.name)?.trim();
-    if (!name) return;
-    const description = window.prompt("Descrição:", active.description ?? "") ?? "";
-    await dataService.update<Project>("projects", active.id, { name, description }); await reload();
-  };
-  const removeProject = async () => {
-    if (!active || !window.confirm(`Excluir “${active.name}”?`)) return;
-    await dataService.remove("projects", active.id); setActiveId(null); await reload();
-  };
-
-  return <div className="flex h-full flex-1 overflow-hidden noir-responsive-split">
-    <aside className="noir-subnav flex flex-col h-full overflow-y-auto flex-shrink-0 py-4" style={{ width: 220, background: "#171923", borderRight: "1px solid #252840" }}>
-      <div className="flex items-center justify-between px-4 mb-3"><span className="text-xs font-semibold uppercase tracking-wider" style={{ color: "#9296A8" }}>Projetos</span><button onClick={createProject} className="text-lg" style={{ color: "#7B61FF" }}>+</button></div>
-      {projects.map(project => <button key={project.id} onClick={() => setActiveId(project.id)} className="px-4 py-3 text-left" style={{ background: active?.id === project.id ? "#1e1640" : "transparent", borderLeft: `2px solid ${active?.id === project.id ? "#7B61FF" : "transparent"}` }}><p className="text-sm font-medium" style={{ color: "#F5F5F7" }}>{project.name}</p><p className="text-xs truncate" style={{ color: "#9296A8" }}>{project.description || "Sem descrição"}</p></button>)}
-      {!projects.length && <p className="px-4 py-6 text-xs" style={{ color: "#9296A8" }}>Nenhum projeto criado.</p>}
-    </aside>
-    <main className="flex-1 overflow-y-auto p-6">
-      {active ? <div className="max-w-3xl"><div className="flex flex-wrap items-start gap-3 mb-6"><div className="flex-1"><h1 className="text-xl font-semibold">{active.name}</h1><p className="text-sm mt-2" style={{ color: "#9296A8" }}>{active.description || "Sem descrição."}</p></div><button onClick={editProject} className="noir-secondary-button">Editar</button><button onClick={removeProject} className="noir-danger-button">Excluir</button></div><div className="rounded-xl p-5" style={{ background: "#202331", border: "1px solid #252840" }}><p className="text-xs uppercase tracking-wider mb-3" style={{ color: "#9296A8" }}>Dados persistentes</p><p className="text-sm">Criado em {new Date(active.createdAt).toLocaleString("pt-BR")}</p><p className="text-sm mt-1">Atualizado em {new Date(active.updatedAt).toLocaleString("pt-BR")}</p></div></div> : <div className="h-full grid place-items-center"><button onClick={createProject} className="noir-primary-button">Criar primeiro projeto</button></div>}
-    </main>
-  </div>;
+  const save = async () => { if (!editing?.name?.trim()) return; const changes = { name: editing.name.trim(), description: editing.description?.trim() || "" }; if (editing.id) await dataService.update("projects", editing.id, changes); else { const created = await dataService.create<Project>("projects", changes); setActiveId(created.id); } setEditing(null); await reload(); };
+  const linked = active ? { notes: related.notes.filter(x => x.projectId === active.id), tasks: related.tasks.filter(x => x.projectId === active.id), memories: related.memories.filter(x => x.projectId === active.id) } : null;
+  return <div className="flex h-full flex-1 overflow-hidden noir-responsive-split"><aside className="noir-subnav flex flex-col overflow-y-auto py-4 w-56" style={{ background: "#171923", borderRight: "1px solid #252840" }}><div className="flex justify-between px-4 mb-3"><span className="text-xs uppercase" style={{ color: "#9296A8" }}>Projetos</span><button onClick={() => setEditing({})} style={{ color: "#7B61FF" }}>+</button></div>{projects.map(p => <button key={p.id} onClick={() => setActiveId(p.id)} className="px-4 py-3 text-left" style={{ background: active?.id === p.id ? "#1e1640" : "transparent" }}><p className="text-sm font-medium">{p.name}</p><p className="text-xs truncate" style={{ color: "#9296A8" }}>{p.description || "Sem descrição"}</p></button>)}</aside><main className="flex-1 overflow-y-auto p-6">{active ? <div className="max-w-3xl"><div className="flex gap-3"><div className="flex-1"><h1 className="text-xl font-semibold">{active.name}</h1><p className="text-sm mt-2" style={{ color: "#9296A8" }}>{active.description || "Sem descrição."}</p></div><button onClick={() => setEditing(active)} className="noir-secondary-button">Editar</button><button onClick={async () => { if (window.confirm(`Excluir “${active.name}”? Os itens relacionados serão desvinculados.`)) { await dataService.remove("projects", active.id); await reload(); } }} className="noir-danger-button">Excluir</button></div><div className="grid sm:grid-cols-3 gap-3 mt-6">{linked && Object.entries(linked).map(([name, values]) => <section key={name} className="noir-card"><p className="text-xs uppercase" style={{ color: "#9296A8" }}>{name}</p><p className="text-2xl mt-2">{values.length}</p><div className="mt-3 space-y-1">{values.slice(0, 4).map(item => <p key={item.id} className="text-xs truncate">{"title" in item ? item.title : item.content}</p>)}</div></section>)}</div></div> : <button onClick={() => setEditing({})} className="noir-primary-button">Criar primeiro projeto</button>}</main>{editing && <EntityModal title={editing.id ? "Editar projeto" : "Novo projeto"} onClose={() => setEditing(null)} onSubmit={() => void save()}><input autoFocus required className="noir-input w-full" value={editing.name ?? ""} onChange={e => setEditing({ ...editing, name: e.target.value })} placeholder="Nome"/><textarea className="noir-input w-full min-h-28" value={editing.description ?? ""} onChange={e => setEditing({ ...editing, description: e.target.value })} placeholder="Descrição"/></EntityModal>}</div>;
 }

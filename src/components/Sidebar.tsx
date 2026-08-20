@@ -1,15 +1,18 @@
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import ToshiAvatar from "./ToshiAvatar";
-
-type Screen = "chat" | "memories" | "projects" | "notes" | "tools" | "settings";
+import { AIService } from "../systems/ai/AIService";
+import { useSettings } from "../systems/settings/SettingsContext";
+import type { NotesTab, Screen } from "../App";
 
 interface SidebarProps {
   activeScreen: Screen;
+  activeNotesTab: NotesTab;
   onNavigate: (screen: Screen) => void;
+  onOpenNotes: (tab: NotesTab, create?: boolean) => void;
   onMiniMode: () => void;
 }
 
-const navItems: { id: Screen; label: string; icon: ReactNode }[] = [
+const navItems: { id: Screen; label: string; notesTab?: NotesTab; icon: ReactNode }[] = [
   {
     id: "chat",
     label: "Chat",
@@ -42,6 +45,7 @@ const navItems: { id: Screen; label: string; icon: ReactNode }[] = [
   {
     id: "notes",
     label: "Notas",
+    notesTab: "notes",
     icon: (
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
@@ -55,6 +59,7 @@ const navItems: { id: Screen; label: string; icon: ReactNode }[] = [
   {
     id: "notes",
     label: "Tarefas",
+    notesTab: "tasks",
     icon: (
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <polyline points="9 11 12 14 22 4" />
@@ -122,10 +127,29 @@ const quickActions = [
   },
 ];
 
-export default function Sidebar({ activeScreen, onNavigate, onMiniMode }: SidebarProps) {
-  const uniqueNavItems = navItems.filter((item, idx, arr) =>
-    arr.findIndex(i => i.id === item.id && i.label === item.label) === idx
-  );
+export default function Sidebar({ activeScreen, activeNotesTab, onNavigate, onOpenNotes, onMiniMode }: SidebarProps) {
+  const { settings } = useSettings();
+  const [providerStatus, setProviderStatus] = useState("Indisponível");
+  const [providerReady, setProviderReady] = useState(false);
+  const [actionError, setActionError] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    const apply = (status: Awaited<ReturnType<typeof AIService.status>>) => { if (!active) return; const labels: Record<string, string> = { local: "Local", groq: "Groq", openrouter: "OpenRouter", openai: "OpenAI", mock: "Mock" }; setProviderStatus(labels[status.activeProvider] ?? "Indisponível"); setProviderReady(status.state === "ready"); };
+    void AIService.status().then(apply).catch(() => { if (active) { setProviderStatus("Indisponível"); setProviderReady(false); } });
+    const unsubscribe = AIService.onStatusChanged(apply);
+    return () => { active = false; unsubscribe(); };
+  }, [settings?.aiProvider]);
+
+  const minimizeToTray = async () => {
+    try {
+      if (!window.projectNoir) throw new Error("Disponível apenas no aplicativo desktop.");
+      await window.projectNoir.window.hide();
+      setActionError("");
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "Não foi possível ocultar a janela.");
+    }
+  };
 
   return (
     <aside
@@ -145,8 +169,8 @@ export default function Sidebar({ activeScreen, onNavigate, onMiniMode }: Sideba
             Noir
           </p>
           <div className="flex items-center justify-center gap-1.5 mt-0.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-green-400" style={{ boxShadow: "0 0 5px #34d399" }} />
-            <span className="text-xs" style={{ color: "#34d399" }}>Online</span>
+            <span className="w-1.5 h-1.5 rounded-full" style={{ background: providerReady ? "#34d399" : "#f87171" }} />
+            <span className="text-xs" style={{ color: providerReady ? "#34d399" : "#f87171" }}>{providerStatus}</span>
           </div>
         </div>
       </div>
@@ -157,11 +181,11 @@ export default function Sidebar({ activeScreen, onNavigate, onMiniMode }: Sideba
       {/* Navigation */}
       <nav className="flex flex-col gap-0.5 px-3 py-3 flex-1 overflow-y-auto">
         {navItems.map((item, idx) => {
-          const isActive = activeScreen === item.id;
+          const isActive = activeScreen === item.id && (item.id !== "notes" || item.notesTab === activeNotesTab);
           return (
             <button
               key={`${item.id}-${idx}`}
-              onClick={() => onNavigate(item.id)}
+              onClick={() => item.notesTab ? onOpenNotes(item.notesTab) : onNavigate(item.id)}
               className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 w-full text-left"
               style={{
                 background: isActive ? "#1e1640" : "transparent",
@@ -184,14 +208,6 @@ export default function Sidebar({ activeScreen, onNavigate, onMiniMode }: Sideba
             >
               <span style={{ opacity: isActive ? 1 : 0.7 }}>{item.icon}</span>
               {item.label}
-              {item.id === "notes" && item.label === "Tarefas" && (
-                <span
-                  className="ml-auto text-xs px-1.5 py-0.5 rounded-full"
-                  style={{ background: "#7B61FF22", color: "#7B61FF", fontSize: 10 }}
-                >
-                  3
-                </span>
-              )}
             </button>
           );
         })}
@@ -209,10 +225,15 @@ export default function Sidebar({ activeScreen, onNavigate, onMiniMode }: Sideba
           {quickActions.map(action => (
             <button
               key={action.action}
-              title={action.label}
-              onClick={() => action.action === "mini" && onMiniMode()}
+              title={action.action === "files" || action.action === "night" ? `${action.label} — Em desenvolvimento` : action.label}
+              onClick={() => {
+                if (action.action === "mini") onMiniMode();
+                if (action.action === "note") onOpenNotes("notes", true);
+              }}
+              disabled={action.action === "files" || action.action === "night"}
+              aria-disabled={action.action === "files" || action.action === "night"}
               className="flex items-center justify-center rounded-lg p-2 transition-all duration-150"
-              style={{ background: "#202331", color: "#9296A8" }}
+              style={{ background: "#202331", color: "#9296A8", opacity: action.action === "files" || action.action === "night" ? 0.42 : 1, cursor: action.action === "files" || action.action === "night" ? "not-allowed" : "pointer" }}
               onMouseEnter={e => {
                 (e.currentTarget as HTMLButtonElement).style.background = "#252840";
                 (e.currentTarget as HTMLButtonElement).style.color = "#7B61FF";
@@ -231,6 +252,7 @@ export default function Sidebar({ activeScreen, onNavigate, onMiniMode }: Sideba
       {/* Tray minimize */}
       <div className="px-4 pb-4">
         <button
+          onClick={() => void minimizeToTray()}
           className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-xs transition-all duration-150"
           style={{ background: "#202331", color: "#9296A8" }}
           onMouseEnter={e => {
@@ -246,6 +268,7 @@ export default function Sidebar({ activeScreen, onNavigate, onMiniMode }: Sideba
           </svg>
           Minimizar para bandeja
         </button>
+        {actionError && <p className="text-xs mt-2" style={{ color: "#f87171" }}>{actionError}</p>}
       </div>
     </aside>
   );
